@@ -1,0 +1,77 @@
+#<14>Jul 20 00:00:00 srv-synology02 Drive id: 1445098, type: 16, uid: 0, username: , view_id: 255, share_name: TEST\test, share_type: 3, time: 1721376164, s1: test.osheet, s2: None, s3: None, s4: None, s5: None, p1: 6, p2: 0, p3: None, p4: None, p5: None, target_view_id: 0, target_share_name: , target_share_type: 0, client_type: 512, ip_address:
+#<14>Jul 20 00:00:00 srv-synology02 Drive id: 1445113, type: 15, uid: 1541508000, username: TEST\test, view_id: 259, share_name: TEST\test, share_type: 3, time: 1721376749, s1: test.osheet, s2: , s3: , s4: None, s5: None, p1: 43, p2: 0, p3: None, p4: None, p5: None, target_view_id: 0, target_share_name: , target_share_type: 0, client_type: 256, ip_address: 127.0.0.1
+
+
+
+TEXT = '{"<"NUMBER">"?}{time=DATETIME} {$event_src.hostname=STRING} Drive id: {$drive.id=NUMBER}, type: {$type=NUMBER}, uid: {$uid=NUMBER}, username: {$userdata=STRING?} view_id: {$view_id=NUMBER}, share_name: {$share_name=STRING} share_type: {$share_type=NUMBER}, time: {$time2=NUMBER}, s1: {$s1=STRING*} s2: {$s2=STRING?} s3: {$s3=STRING?} s4: {$s4=STRING?} s5: {$s5=STRING?} p1: {$p1=STRING?} p2: {$S2=STRING?} p3: {$p3=STRING?} p4: {$4=STRING?} p5: {$5=STRING?} target_view_id: {$target_view_id=NUMBER}, target_share_name: {$target_share_name=STRING?}, target_share_type: {$target_share_type=NUMBER?}, client_type: {$client_type = STRING?} ip_address: {$ip_address=IPV4|$ip_address=REST}'
+
+$userdata = strip($userdata, '', ',')
+if find_substr($userdata, "\\\\") != null then
+    $temp_user = csv($userdata, '\\\\', '')
+    subject.account.domain = $temp_user[0]
+    subject.account.name = $temp_user[1]
+elif find_substr($userdata, "@") != null then
+    $temp_user = csv($userdata, '@', '')
+    subject.account.domain = $temp_user[1]
+    subject.account.name = $temp_user[0]
+elif find_substr($userdata, "\\") != null then
+    $temp_user = csv($userdata, '\\', '')
+    subject.account.domain = $temp_user[0]
+    subject.account.name = $temp_user[1]
+elif $userdata == "" then
+    subject.account.name = null
+else
+    subject.account.name = $userdata
+endif 
+
+datafield1 = $type
+
+
+if length($share_name) != null  then
+    $userdata = strip($share_name, '', ',')
+    if find_substr($userdata, "\\") != null then
+        $temp_user = csv($userdata, '\\', '')
+        object.account.domain = $temp_user[0]
+        object.account.name = $temp_user[1]
+    elif find_substr($userdata, "@") != null then
+        $temp_user = csv($userdata, '@', '')
+        object.account.domain = $temp_user[1]
+        object.account.name = $temp_user[0]
+    elif find_substr($userdata, "\\") != null then
+        $temp_user = csv($userdata, '\\', '')
+        object.account.domain = $temp_user[0]
+        object.account.name = $temp_user[1]
+    else
+         object.account.name = $userdata
+    endif
+endif
+
+action = switch(datafield1)
+    case "21" "restore"
+    case "23" "download"
+    case "24" "view"
+    case "25" "revoke"
+    case "27" "grant"
+    case "28" "upload" #public link creation
+    case "30" "change"
+    case "33" "truncate" #expiration date of a link
+    case "13" "create"
+    case "14" "delete"
+    case "15" "modify"
+    case "17" "rename"
+endswitch
+
+object.path = strip($s1, "", ",")
+
+src.ip = $ip_address 
+
+importance = "info"
+
+category.high = "System Management"
+category.generic = "File System Object"
+category.low = "Manipulation"
+
+event_src.vendor = "synology"
+event_src.title = "diskstation_manager"
+event_src.category = "Storage device"
+id = "Synology_Drive"
